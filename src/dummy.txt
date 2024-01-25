@@ -1,0 +1,166 @@
+ // Move the cursor to the end of the contentEditable div
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(textareaRef.current);
+    range.collapse(false); // Collapse the range to the end
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    "use client";
+import React, { useState, useRef } from "react";
+
+const SuggestedTextInput = () => {
+  const [content, setContent] = useState("");
+  const [suggestions, setSuggestions] = useState([
+    "variable1",
+    "variable2",
+    "variable3",
+  ]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSection, setActiveSection] = useState(null);
+  const [insideBrackets, setInsideBrackets] = useState(false);
+  const textareaRef = useRef(null);
+
+  const handleContentChange = () => {
+    const newText = textareaRef.current.value;
+    setContent(newText);
+
+    // Detect '{{' and trigger suggestions
+    const selectionStart = textareaRef.current.selectionStart;
+    const selectionEnd = textareaRef.current.selectionEnd;
+
+    const matches = newText.match(/{{([^{}]*)}}/g);
+
+    if (matches) {
+      const activeSectionMatch = matches.find(
+        (match) =>
+          selectionStart >= newText.indexOf(match) &&
+          selectionEnd <= newText.indexOf(match) + match.length
+      );
+
+      setActiveSection(activeSectionMatch);
+    } else {
+      setActiveSection(null);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    // Handle Control + Space to trigger suggestions
+    if (e.ctrlKey && e.keyCode === 32) {
+      e.preventDefault();
+      if ((activeSection && activeSection.includes("{{}}")) || insideBrackets) {
+        setShowSuggestions(!showSuggestions);
+      }
+    }
+  };
+
+  
+  const handleSuggestionSelect = (suggestion) => {
+    // Insert selected variable at the active {{}} section or at the cursor position
+    if (activeSection && activeSection.includes("{{}}")) {
+      const startOffset = content.indexOf(activeSection);
+      const endOffset = startOffset + activeSection.length;
+
+      const beforeCursor = content.slice(0, startOffset);
+      const afterCursor = content.slice(endOffset);
+
+      const newContent = beforeCursor + `{{${suggestion}}}` + afterCursor;
+
+      setContent(newContent);
+    }
+    // else {
+    //   const currentPosition = textareaRef.current.selectionStart;
+    //   const beforeCursor = content.slice(0, currentPosition);
+    //   const afterCursor = content.slice(currentPosition);
+
+    //   const newContent = beforeCursor + `{{${suggestion}}}` + afterCursor;
+
+    //   setContent(newContent);
+    // }
+
+    // Move the cursor to the end of the modified content
+    textareaRef.current.setSelectionRange(
+      textareaRef.current.selectionStart + suggestion.length + 4,
+      textareaRef.current.selectionStart + suggestion.length + 4
+    );
+
+    // Hide the suggestion box
+    setShowSuggestions(false);
+    setActiveSection(null);
+  };
+
+  const handleMouseClick = (event) => {
+    // const cursorPosition = event.target.selectionStart;
+    const cursorPosition = textareaRef.current.selectionStart;
+    const variableRegex = /\{\{(.*?)\}\}/g;
+
+    // Find all matches of {{...}} in the content
+    const matches = [...content.matchAll(variableRegex)];
+
+    // Check if the cursor is inside any of the {{...}} brackets
+    const isInsideBrackets = matches.some((match) => {
+      const startOffset = match.index;
+      const endOffset = startOffset + match[0].length;
+      return cursorPosition >= startOffset && cursorPosition <= endOffset;
+    });
+
+    if (isInsideBrackets) {
+      console.log("Cursor is inside {{}} brackets:", cursorPosition);
+      setInsideBrackets(true);
+    } else {
+      console.log("Cursor is outside {{}} brackets:", cursorPosition);
+      setInsideBrackets(false);
+    }
+  };
+
+  console.log(insideBrackets, "insideBrackets");
+
+  return (
+    <div>
+      <textarea
+        ref={textareaRef}
+        value={content}
+        onChange={handleContentChange}
+        onKeyDown={handleKeyDown}
+        onClick={handleMouseClick}
+        style={{ border: "1px solid #ccc", padding: "10px", minHeight: "50px" }}
+      />
+
+      {showSuggestions && (
+        <div
+          style={{ border: "1px solid #ccc", marginTop: "5px", padding: "5px" }}
+        >
+          {suggestions.map((suggestion) => (
+            <div
+              key={suggestion}
+              style={{ cursor: "pointer", padding: "5px" }}
+              onClick={() => handleSuggestionSelect(suggestion)}
+            >
+              {suggestion}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SuggestedTextInput;
